@@ -9,6 +9,7 @@ dependencies = [
     "ddgs>=9.5.2",
     "dotenv>=0.9.9",
     "duckduckgo-search>=8.1.1",
+    "git-filter-repo>=2.47.0",
     "gspread>=6.2.1",
     "openai-agents>=0.2.4",
     "python-dotenv>=1.1.1",
