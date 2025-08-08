@@ -19,7 +19,7 @@ model = OpenAIChatCompletionsModel(
 
 @function_tool
 def search_info_tool(query:str) -> str:
-    """
+    """git 
     Searches for information related to ultrasound scans.
     """
     results = DDGS().text(keywords=query, max_results=3)
@@ -109,17 +109,3 @@ def streamlit_run_agent(user_input: str) -> str:
 
 
 
-
-        # GEMINI_API_KEY=AIzaSyDQt_LXwdsIeyXu8izcUZ_8yAQ0zCAl6EQ
-
-# https://docs.google.com/forms/d/e/1FAIpQLSeF0RvnrhnpxBlMWOg0hIJlAatg1BE9-0CRi5v7HYcLyaq8pA/viewform?usp=dialog
-
-# 4C4XWQV6WSS1W5V4A6N83P5G
-
-# TWILIO_ACCOUNT_SID=AC9e464ae9f0cd913df382e2333b65c309
-# TWILIO_AUTH_TOKEN=011364b819418cc413e302ac0f27e9c2
-# TWILIO_WHATSAPP_NUMBER=+14155238886
-
-# +19785416387
-
-# 5J3J75B2PCT6R7A5HKQHR8NX
