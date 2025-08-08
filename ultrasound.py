@@ -78,7 +78,7 @@ def text_to_speech_tool(text: str) -> bytes:
             }
         }
     }
-    api_key = ""
+    api_key = os.getenv("GEMINI_API_KEY")
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={api_key}"
     
     try:
