@@ -1,0 +1,18 @@
+[project]
+name = "radiology"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "chainlit>=2.6.5",
+    "ddgs>=9.5.2",
+    "dotenv>=0.9.9",
+    "duckduckgo-search>=8.1.1",
+    "gspread>=6.2.1",
+    "openai-agents>=0.2.4",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.4",
+    "streamlit>=1.48.0",
+    "twilio>=9.7.0",
+]
