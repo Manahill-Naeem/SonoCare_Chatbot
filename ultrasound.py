@@ -60,7 +60,7 @@ def appointment_booking_tool() -> str:
 def outofscope_guardrail_tool(query: str) -> str:
     return "I am sorry, but I can only assist with questions about ultrasound information and appointment booking. Please ask me about those topics."
 
-@function_tool
+
 def text_to_speech_tool(text: str) -> bytes:
     """
     Converts text to speech using the Gemini TTS API.
