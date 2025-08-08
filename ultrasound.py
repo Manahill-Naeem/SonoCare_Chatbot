@@ -1,9 +1,11 @@
 import os
 import asyncio
+import base64
 from dotenv import load_dotenv
-from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner, set_tracing_disabled, function_tool, tool
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner, set_tracing_disabled, function_tool
 from duckduckgo_search import DDGS
 from datetime import datetime
+import json
 
 load_dotenv()
 set_tracing_disabled(True)
@@ -18,18 +20,20 @@ model = OpenAIChatCompletionsModel(
 )
 
 @function_tool
-def search_info_tool(query:str) -> str:
-    """git 
+def search_info_tool(query: str) -> str:
+    """
     Searches for information related to ultrasound scans.
     """
     results = DDGS().text(keywords=query, max_results=3)
-    if not results: return "No results found."
+    if not results:
+        return "No results found."
     formatted_results = []
-    for r in results: formatted_results.append(f"Title: {r['title']}\nURL: {r['href']}\nDescription: {r['body']}")
+    for r in results:
+        formatted_results.append(f"Title: {r['title']}\nURL: {r['href']}\nDescription: {r['body']}")
     return "\n\n".join(formatted_results)
 
 @function_tool
-def preparation_guide_tool(query:str) -> str:
+def preparation_guide_tool(query: str) -> str:
     """
     Provides preparation guides for specific ultrasound types.
     """
@@ -53,8 +57,50 @@ def appointment_booking_tool() -> str:
     return f"To book an appointment, please fill out this form: {FORM_LINK}"
 
 @function_tool
-def outofscope_guardrail_tool(query:str) -> str:
+def outofscope_guardrail_tool(query: str) -> str:
     return "I am sorry, but I can only assist with questions about ultrasound information and appointment booking. Please ask me about those topics."
+
+@function_tool
+def text_to_speech_tool(text: str) -> bytes:
+    """
+    Converts text to speech using the Gemini TTS API.
+    """
+    payload = {
+        "contents": [{
+            "parts": [{"text": text}]
+        }],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": "Puck"}
+                }
+            }
+        }
+    }
+    api_key = ""
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={api_key}"
+    
+    try:
+        response = asyncio.run(
+            asyncio.wait_for(
+                external_client.post(
+                    api_url,
+                    headers={"Content-Type": "application/json"},
+                    data=json.dumps(payload),
+                    timeout=30.0
+                ),
+                timeout=30.0
+            )
+        )
+        result = json.loads(response.text)
+        audio_data_base64 = result.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('inlineData', {}).get('data')
+        if audio_data_base64:
+            return base64.b64decode(audio_data_base64)
+    except Exception as e:
+        print(f"Error in TTS API call: {e}")
+        return None
+    return None
 
 def check_output_for_safety(output: str) -> str:
     undesired_phrases = ["error", "i am sorry", "i cannot provide", "invalid date"]
@@ -83,8 +129,7 @@ UltrasoundAgent = Agent(
     tools=[appointment_booking_tool]
 )
 
-
-def streamlit_run_agent(user_input: str) -> str:
+def streamlit_run_agent(user_input: str, use_voice: bool = False) -> tuple[str, bytes]:
     """
     Takes input from the Streamlit UI, runs the agent, and returns the output.
     """
@@ -101,11 +146,13 @@ def streamlit_run_agent(user_input: str) -> str:
             )
         )
         safe_output = check_output_for_safety(result.final_output)
-        return safe_output
+
+        audio_data = None
+        if use_voice and safe_output:
+            audio_data = text_to_speech_tool(safe_output)
+            
+        return safe_output, audio_data
     except Exception as e:
-        return f"An error occurred: {e}"
+        return f"An error occurred: {e}", None
     finally:
         loop.close()
-
-
-
