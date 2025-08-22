@@ -1,6 +1,7 @@
 import os
 import asyncio
 import base64
+import requests
 from dotenv import load_dotenv
 from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner, set_tracing_disabled, function_tool
 from duckduckgo_search import DDGS
@@ -24,7 +25,11 @@ def search_info_tool(query: str) -> str:
     """
     Searches for information related to ultrasound scans.
     """
-    results = DDGS().text(keywords=query, max_results=3)
+    try:
+        ddg_results = DDGS().text(keywords=query, max_results=3)
+        results = list(ddg_results) if ddg_results else []
+    except Exception:
+        return "No internet connection or search service unavailable."
     if not results:
         return "No results found."
     formatted_results = []
@@ -41,7 +46,7 @@ def preparation_guide_tool(query: str) -> str:
         return "#Purpose: To visualize abdominal organs.\n#Preparation: Fast for 6-8 hours before the scan."
     elif "pelvic" in query.lower() or "pelvis" in query.lower():
         return "#Purpose: To visualize pelvic organs.\n#Preparation: Drink several glasses of water to ensure a full bladder."
-    elif "obsteric" in query.lower() or "obs" in query.lower():
+    elif "obstetric" in query.lower() or "obs" in query.lower():
         return "#Purpose: To monitor fetal development.\n#Preparation: No specific preparation is needed, but wearing loose clothing is recommended."
     elif "kidneys" in query.lower():
         return "#Purpose: To visualize the kidneys.\n#Preparation: Drink 1 liter of water one hour before the appointment and do not urinate."
@@ -65,38 +70,59 @@ def text_to_speech_tool(text: str) -> bytes:
     """
     Converts text to speech using the Gemini TTS API.
     """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("GEMINI_API_KEY is not set; skipping TTS.")
+        return None
+
     payload = {
-        "contents": [{
-            "parts": [{"text": text}]
-        }],
-        "generationConfig": {
-            "responseModalities": ["AUDIO"],
-            "speechConfig": {
-                "voiceConfig": {
-                    "prebuiltVoiceConfig": {"voiceName": "Puck"}
-                }
+        "contents": [
+            {
+                "parts": [{"text": text}]
             }
+        ],
+        "generationConfig": {
+            "response_mime_type": "audio/mpeg"
         }
     }
-    api_key = os.getenv("GEMINI_API_KEY")
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={api_key}"
-    
+    api_url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"gemini-2.5-flash:generateContent?key={api_key}"
+    )
+    print("TTS payload:", payload)
+    print("TTS api_url:", api_url)
     try:
-        response = asyncio.run(
-            asyncio.wait_for(
-                external_client.post(
-                    api_url,
-                    headers={"Content-Type": "application/json"},
-                    data=json.dumps(payload),
-                    timeout=30.0
-                ),
-                timeout=30.0
-            )
+        response = requests.post(
+            api_url,
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(payload),
+            timeout=30
         )
-        result = json.loads(response.text)
-        audio_data_base64 = result.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('inlineData', {}).get('data')
+        print("TTS raw response:", response.text)
+        result = response.json()
+        print("TTS parsed result:", result)
+        audio_data_base64 = None
+        try:
+            audio_data_base64 = (
+                result.get('candidates', [{}])[0]
+                .get('content', {}).get('parts', [{}])[0]
+                .get('inline_data', {}).get('data')
+            )
+        except Exception as parse_err:
+            print(f"Error parsing TTS response: {parse_err}")
         if audio_data_base64:
-            return base64.b64decode(audio_data_base64)
+            print("TTS audio_data_base64 found.")
+            audio_bytes = base64.b64decode(audio_data_base64)
+            # Save to file for debugging
+            try:
+                with open("tts_debug.mp3", "wb") as f:
+                    f.write(audio_bytes)
+                print("TTS audio written to tts_debug.mp3")
+            except Exception as file_err:
+                print(f"Error writing TTS audio to file: {file_err}")
+            return audio_bytes
+        else:
+            print("TTS audio_data_base64 NOT found.")
     except Exception as e:
         print(f"Error in TTS API call: {e}")
         return None
@@ -125,8 +151,8 @@ UltrasoundAgent = Agent(
     - If the user's request is not related to these two topics, you must hand off to the outofscope_guardrail_tool.
     """,
     model=model,
-    handoffs=[information_guide_agent, outofscope_guardrail_tool],
-    tools=[appointment_booking_tool]
+    handoffs=[information_guide_agent],
+    tools=[appointment_booking_tool, outofscope_guardrail_tool]
 )
 
 def streamlit_run_agent(user_input: str, use_voice: bool = False) -> tuple[str, bytes]:

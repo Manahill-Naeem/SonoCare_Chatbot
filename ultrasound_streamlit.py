@@ -3,8 +3,8 @@ import time
 from ultrasound import streamlit_run_agent
 
 # Streamlit UI setup
-st.set_page_config(page_title="Ultrasound Chatbot", page_icon="🩺")
-st.title("Ultrasound Chatbot 🩺")
+st.set_page_config(page_title="SonoCare Chatbot", page_icon="🩺")
+st.title("SonoCare Chatbot 🩺")
 st.markdown("You can ask questions about your ultrasound reports here.")
 
 # Initialize chat history in session state
@@ -39,4 +39,4 @@ if prompt := st.chat_input("Write your question here..."):
     with st.chat_message("assistant"):
         st.markdown(response_text)
         if audio_data:
-            st.audio(audio_data, format="audio/l16", sample_rate=24000)
+            st.audio(audio_data, format="audio/mp3")
