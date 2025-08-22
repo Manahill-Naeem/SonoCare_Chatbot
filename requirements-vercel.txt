@@ -1,6 +1,5 @@
-streamlit==1.42.2
+flask==3.0.0
 python-dotenv==1.1.1
 requests==2.32.3
 duckduckgo-search==8.1.1
 agents==1.4.0
-flask==3.0.0
